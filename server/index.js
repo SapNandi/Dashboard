@@ -1,6 +1,5 @@
 import express from "express";
 import bodyParser from "body-parser";
-import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import helmet from "helmet";
@@ -9,22 +8,14 @@ import clientRoutes from "./routes/client.js";
 import generalRoutes from "./routes/general.js";
 import managementRoutes from "./routes/management.js";
 import salesRoutes from "./routes/sales.js";
+import { connectDatabase } from "./config/database.js";
 
-// data imports
-import User from "./models/User.js";
-import Product from "./models/Product.js";
-import ProductStat from "./models/ProductStat.js";
-import Transaction from "./models/Transaction.js";
-import OverallStat from "./models/OverallStat.js";
-import AffiliateStat from "./models/AffiliateStat.js";
-import {
-  dataUser,
-  dataProduct,
-  dataProductStat,
-  dataTransaction,
-  dataOverallStat,
-  dataAffiliateStat,
-} from "./data/index.js";
+// Handling Uncaught Exception
+process.on("uncaughtException", (err) => {
+  console.log(`Error : ${err.message}`);
+  console.log(`Shutting down the server due to Uncaught Exception`);
+  process.exit(1);
+});
 
 /* CONFIGURATION */
 dotenv.config();
@@ -43,22 +34,21 @@ app.use("/general", generalRoutes);
 app.use("/management", managementRoutes);
 app.use("/sales", salesRoutes);
 
-/* MONGOOSE SETUP */
 const PORT = process.env.PORT || 9000;
-mongoose
-  .connect(process.env.MONGO_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => {
-    app.listen(PORT, () => console.log(`Server Port: ${PORT}`));
 
-    /* ONLY ADD DATA ONE TIME */
-    // AffiliateStat.insertMany(dataAffiliateStat);
-    // OverallStat.insertMany(dataOverallStat);
-    // Product.insertMany(dataProduct);
-    // ProductStat.insertMany(dataProductStat);
-    // Transaction.insertMany(dataTransaction);
-    // User.insertMany(dataUser);
-  })
-  .catch((error) => console.log(`${error} did not connect`));
+/* DATABASE CONNECTION */
+connectDatabase();
+
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${process.env.PORT}`);
+});
+
+// Unhandled Promise Rejection
+process.on("unhandledRejection", (err) => {
+  console.log(`Error : ${err.message}`);
+  console.log(`Shutting down the server due to unhandled Promise Rejection`);
+
+  server.close(() => {
+    process.exit(1);
+  });
+});
